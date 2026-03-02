@@ -304,8 +304,9 @@ export default function Home() {
     };
 
     const transmitFiles = async () => {
-        if (!draftHtfFile && !draftLtfFile) {
-            setError("Quantitative format error. Provide at least one HTF or LTF chart image.");
+        const currentComment = draftComment.trim();
+        if (!draftHtfFile && !draftLtfFile && !currentComment) {
+            setError("Quantitative format error. Provide at least one chart image or a text message.");
             return;
         }
 
@@ -320,7 +321,6 @@ export default function Home() {
         }
 
         try {
-            const currentComment = draftComment.trim();
             const userMsgId = Date.now().toString();
 
             let htfData = null;
@@ -814,7 +814,7 @@ export default function Home() {
 
                             <div
                                 onClick={transmitFiles}
-                                className={`w-full md:w-auto px-5 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex justify-center items-center gap-2 transition-all shadow-lg shrink-0 text-black ${draftHtfFile || draftLtfFile ? 'bg-white hover:bg-[#00FFFF] cursor-pointer' : 'bg-white/50 cursor-not-allowed opacity-50'}`}
+                                className={`w-full md:w-auto px-5 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex justify-center items-center gap-2 transition-all shadow-lg shrink-0 text-black ${draftHtfFile || draftLtfFile || draftComment.trim() ? 'bg-white hover:bg-[#00FFFF] cursor-pointer' : 'bg-white/50 cursor-not-allowed opacity-50'}`}
                             >
                                 Transmit <ArrowRight className="w-3 h-3 block" />
                             </div>
