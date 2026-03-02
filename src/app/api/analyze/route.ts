@@ -16,7 +16,8 @@ You will be provided with a sequence of images representing a chat history of ma
 Step 1: CONTEXTUAL COMPOUNDING (Adding Info on Info)
 Analyze the entire chronological sequence of images. You MUST determine the probable bias/decision of the previous images. Then, analyze the new data in the FINAL image. Explain exactly how this new data builds upon, confirms, or invalidates the previous state's decision. The reasoning must compound: "info on info". If a previous setup was LONG and the new image shows a Bearish BSL Sweep or a failure to break structure, you must explicitly declare the LONG invalidated and update the bias. The sequence of updates must be logically connected.
 Step 2: DATA QUALITY & CONTEXT DISAMBIGUATION
-Scan the FINAL image globally. Scan the top-left corner to extract the 'Asset_Ticker' (e.g., BTCUSDT, ETH, SOL). Scan the top bounding boxes to extract the timeframe. If it is completely unreadable, abort analysis and return INSUFFICIENT_DATA. Otherwise, proceed aggressively.
+Scan the FINAL image globally. Scan the top-left corner to extract the 'Asset_Ticker' (e.g., BTCUSDT, ETH, SOL).
+CRITICAL RULE REGARDING CHART SCALING: The user does NOT use time-based charts (1h, 4h, etc.). They use volume or tick-based Trend Reversal (TRev) candles. You are FORBIDDEN from hallucinating "1h" or "2h" timeframes in your synthesis. You must scan the top bounding boxes to extract the TRev multiplier or volume cluster scale. If it is completely unreadable, heavily penalize the Data Quality Assessment, but do not guess a timeframe.
 Step 3: IDENTIFY DRAW ON LIQUIDITY (Targets)
 Scan the historical geometric structure in the Top Pane of the FINAL image, relative to the context. 
 * Identify the highest structural "mountain peak" (Swing High). This is Buy-Side Liquidity (BSL) and forms Target X (Long).
@@ -24,8 +25,15 @@ Scan the historical geometric structure in the Top Pane of the FINAL image, rela
 * Based on internal/external range geometry, map multiple potential Take Profit zones leading up to the main targets. Calculate a precise invalidation level for a Stop Loss.
 * Calculate a 'Suggested_Entry_Zone' comprised of a minimum and maximum price limit (a 2-value array) where the risk-to-reward ratio is mathematically optimal based on the sweep's rejection tail. Update these targets dynamically based on the evolving context.
 
-Step 4: TARGET VOLATILITY ANCHORING (CRITICAL RULE)
-If your 'Declared_Winner_Direction' for this new update is the EXACT SAME as the previous update in the chat history (e.g., LONG -> LONG), you MUST NOT recalculate the 'Suggested_Entry_Zone', 'Take_Profit_Targets', or 'Recommended_Stop_Loss' from scratch. You must look back at your previous response in the history and perfectly copy the exact numerical values for those fields to prevent UI volatility. You may only alter these anchored targets if a major structural break occurs, which should instead trigger a shift to a new 'Declared_Winner_Direction'.
+Step 3.5: FRACTAL ALIGNMENT (Multi-Timeframe Fusion)
+You may be provided with High Timeframe (HTF) and Low Timeframe (LTF) images combined.
+* If an HTF image is provided, extract the Macro Draw on Liquidity (the major structural pool).
+* If an LTF image is also provided, you are FORBIDDEN from declaring a valid 'LONG' or 'SHORT' sweep on the LTF image unless that LTF sweep occurs precisely at the HTF structural pool you identified.
+* If the LTF sweep misaligns with the HTF structural draw, you MUST return 'Declared_Winner_Direction' as 'STANDBY' and state 'FRACTAL MISALIGNMENT' in your synthesis.
+
+Step 4: TARGET & VISUAL STATE ANCHORING (CRITICAL)
+1. Structural Anchoring: If the FINAL image has not meaningfully evolved from the previous images in the sequence (e.g., it is the exact same chart or only a few candles have printed without breaking structure), you MUST rigidly copy your previous 'Sweep_Type_Detected', 'Tripartite_Confluence_Status', 'S_macro', and 'S_micro' scores. Do not vacillate or change your mind on historical structure.
+2. Target Anchoring: If your 'Declared_Winner_Direction' remains the same as previously, your default behavior MUST be to anchor to the previous 'Suggested_Entry_Zone', 'Take_Profit_Targets', and 'Recommended_Stop_Loss'. ONLY update these numbers if the new image presents a definitive structural shift that mathematically demands a tighter entry. If you update them, you must state exactly why.
 
 Step 5: APPLY "BLACK BEAR" SWEEP EXPLOIT LOGIC (On Current Data)
 * Bullish SSL Sweep: Look for an extraordinarily long, open-sided down wick that violently pierces the SSL line, sharply rejects, and prints a flat-bottomed closing body back inside structure.
@@ -45,7 +53,8 @@ S_micro (Maximum 100): Base 50. +20 if the sweep candle is a perfect flat-close 
 P_final = (0.6 * S_macro) + (0.4 * S_micro)
 
 === ZONE 4: OUTPUT INSTRUCTIONS ===
-Map reasoning perfectly to the exact JSON schema. Do not output markdown text outside the JSON. Field 'Declared_Winner_Direction' must be "INSUFFICIENT_DATA" if the chart cannot be mathematically read. Provide extremely deep, exhaustive reasoning in the 'Detailed_Logical_Synthesis' field detailing *why* the specific entry zone and targets were chosen, and CRITICALLY, explain how the updated chart compares to the historical images provided and why your bias has compounded or shifted.`;
+Map reasoning perfectly to the exact JSON schema. Do not output markdown text outside the JSON. Field 'Declared_Winner_Direction' must be "INSUFFICIENT_DATA" if the chart cannot be mathematically read. 
+CRITICAL JSON ORDER: You MUST execute your deep visual analysis in the 'Detailed_Logical_Synthesis' field FIRST, before you output the Sweep Type, Scores, or Winner Direction. Take your time, think slowly, explicitly cite structural evidence, and explain the compounding evolution from the context history. Use this field as your Chain-of-Thought scratchpad to guarantee your math is perfect before outputting the final numerical zones.`;
 
 const tradeSchema = {
   type: Type.OBJECT,
@@ -54,6 +63,10 @@ const tradeSchema = {
     Asset_Ticker: { type: Type.STRING, description: "The coin or asset ticker symbol, e.g. BTCUSDT, SOL, HYPE. Extract from the top-left." },
     Timeframe_Verified: { type: Type.STRING },
     Data_Quality_Assessment: { type: Type.STRING },
+    Detailed_Logical_Synthesis: {
+      type: Type.STRING,
+      description: "EXECUTE THIS FIRST. Deep, slow, methodical Chain of Thought reasoning explaining exactly what you see visually and mathematically before outputting subsequent fields."
+    },
     Sweep_Type_Detected: { type: Type.STRING },
     Tripartite_Confluence_Status: { type: Type.BOOLEAN },
     Declared_Winner_Direction: {
@@ -75,7 +88,6 @@ const tradeSchema = {
     Recommended_Stop_Loss: { type: Type.NUMBER },
     Long_Probability_Percentage: { type: Type.NUMBER },
     Short_Probability_Percentage: { type: Type.NUMBER },
-    Detailed_Logical_Synthesis: { type: Type.STRING },
     Calculated_Scores: {
       type: Type.OBJECT,
       properties: {
@@ -90,26 +102,21 @@ const tradeSchema = {
     "Timestamp",
     "Timeframe_Verified",
     "Data_Quality_Assessment",
+    "Detailed_Logical_Synthesis",
     "Sweep_Type_Detected",
     "Tripartite_Confluence_Status",
     "Declared_Winner_Direction",
-    "Suggested_Entry_Zone",
-    "Target_X_Long_Price",
-    "Target_Y_Short_Price",
-    "Take_Profit_Targets",
-    "Recommended_Stop_Loss",
     "Long_Probability_Percentage",
     "Short_Probability_Percentage",
-    "Detailed_Logical_Synthesis",
     "Calculated_Scores",
   ],
 };
 
 export async function POST(req: Request) {
   try {
-    const { imageBase64, chatHistory, comment } = await req.json();
+    const { imageBase64, htfImageBase64, ltfImageBase64, chatHistory, comment } = await req.json();
 
-    if (!imageBase64 && (!chatHistory || chatHistory.length === 0)) {
+    if (!imageBase64 && !htfImageBase64 && !ltfImageBase64 && (!chatHistory || chatHistory.length === 0)) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
@@ -127,18 +134,26 @@ export async function POST(req: Request) {
     // 2. Inject historical messages (user images and assistant text) sequentially to build context.
     if (chatHistory && Array.isArray(chatHistory)) {
       for (const msg of chatHistory) {
-        if (msg.role === 'user' && msg.imageBase64) {
-          const userParts: any[] = [
-            {
-              inlineData: {
-                data: msg.imageBase64,
-                mimeType: "image/jpeg",
-              }
-            }
-          ];
+        if (msg.role === 'user' && (msg.imageBase64 || msg.htfImageBase64 || msg.ltfImageBase64)) {
+          const userParts: any[] = [];
+
           if (msg.text) {
             userParts.push({ text: `[USER COMMENT]: ${msg.text}` });
           }
+
+          if (msg.imageBase64) {
+            userParts.push({ text: "[SINGLE CHART]" });
+            userParts.push({ inlineData: { data: msg.imageBase64, mimeType: "image/jpeg" } });
+          }
+          if (msg.htfImageBase64) {
+            userParts.push({ text: "[HIGH TIMEFRAME CHART (HTF)]" });
+            userParts.push({ inlineData: { data: msg.htfImageBase64, mimeType: "image/jpeg" } });
+          }
+          if (msg.ltfImageBase64) {
+            userParts.push({ text: "[LOW TIMEFRAME CHART (LTF)]" });
+            userParts.push({ inlineData: { data: msg.ltfImageBase64, mimeType: "image/jpeg" } });
+          }
+
           contents.push({ role: "user", parts: userParts });
         } else if (msg.role === 'assistant' && msg.text) {
           contents.push({
@@ -154,19 +169,28 @@ export async function POST(req: Request) {
     }
 
     // 3. Inject the current, final image to analyze globally.
-    if (imageBase64) {
+    if (imageBase64 || htfImageBase64 || ltfImageBase64) {
       const currentParts: any[] = [
         { text: "[CURRENT STATE] Proceed with Tripartite Confluence Verification and output JSON schema." }
       ];
+
       if (comment) {
         currentParts.push({ text: `[USER COMMENT]: ${comment}` });
       }
-      currentParts.push({
-        inlineData: {
-          data: imageBase64,
-          mimeType: "image/jpeg",
-        }
-      });
+
+      if (imageBase64) {
+        currentParts.push({ text: "[SINGLE CHART]" });
+        currentParts.push({ inlineData: { data: imageBase64, mimeType: "image/jpeg" } });
+      }
+      if (htfImageBase64) {
+        currentParts.push({ text: "[HIGH TIMEFRAME CHART (HTF)]" });
+        currentParts.push({ inlineData: { data: htfImageBase64, mimeType: "image/jpeg" } });
+      }
+      if (ltfImageBase64) {
+        currentParts.push({ text: "[LOW TIMEFRAME CHART (LTF)]" });
+        currentParts.push({ inlineData: { data: ltfImageBase64, mimeType: "image/jpeg" } });
+      }
+
       contents.push({ role: "user", parts: currentParts });
     }
 
@@ -175,7 +199,7 @@ export async function POST(req: Request) {
       contents: contents, // Pass the entire assembled multimodal array
       config: {
         systemInstruction: SYSTEM_PROMPT,
-        temperature: 0.1,
+        temperature: 0.0,
         responseMimeType: "application/json",
         responseSchema: tradeSchema,
       },

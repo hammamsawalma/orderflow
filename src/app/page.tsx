@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { UploadCloud, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, Target, Zap, Clock, MessageSquare, Plus, Trash2, ArrowRight, ChevronDown, ChevronUp, Link as LinkIcon } from "lucide-react";
+import Link from "next/link";
+import { UploadCloud, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, Target, Zap, Clock, MessageSquare, Plus, Trash2, ArrowRight, ChevronDown, ChevronUp, Link as LinkIcon, BarChart3 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Sub-component for User Image to handle local collapse state
@@ -27,14 +28,28 @@ const UserImageMessage = ({ msg, isLatest }: { msg: ChatMessage, isLatest: boole
                 </div>
 
                 <AnimatePresence>
-                    {expanded && msg.imageUrl && (
+                    {expanded && (msg.imageUrl || msg.htfImageUrl || msg.ltfImageUrl) && (
                         <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden mt-2"
+                            className="overflow-hidden mt-2 flex flex-col gap-3"
                         >
-                            <img src={msg.imageUrl} alt="Uploaded chart" className="w-full rounded-xl object-contain border border-white/5 bg-black/50 max-h-[500px]" />
+                            {msg.imageUrl && (
+                                <img src={msg.imageUrl} alt="Uploaded chart" className="w-full rounded-xl object-contain border border-white/5 bg-black/50 max-h-[500px]" />
+                            )}
+                            {msg.htfImageUrl && (
+                                <div>
+                                    <div className="text-[10px] text-white/50 uppercase tracking-widest mb-1">High Timeframe Context (HTF)</div>
+                                    <img src={msg.htfImageUrl} alt="HTF chart" className="w-full rounded-xl object-contain border border-white/5 bg-black/50 max-h-[500px]" />
+                                </div>
+                            )}
+                            {msg.ltfImageUrl && (
+                                <div>
+                                    <div className="text-[10px] text-white/50 uppercase tracking-widest mb-1">Low Timeframe Engine (LTF)</div>
+                                    <img src={msg.ltfImageUrl} alt="LTF chart" className="w-full rounded-xl object-contain border border-white/5 bg-black/50 max-h-[500px]" />
+                                </div>
+                            )}
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -82,14 +97,21 @@ interface ChatMessage {
     text?: string;
     imageBase64?: string;
     imageUrl?: string;
+    htfImageBase64?: string;
+    htfImageUrl?: string;
+    ltfImageBase64?: string;
+    ltfImageUrl?: string;
     analysisResult?: AnalysisResult;
     timestamp: number;
 }
 
-interface ChatSession {
+export type TradeOutcome = 'Hit TP1' | 'Hit Full TP' | 'Stopped Out' | 'Invalidated';
+
+export interface ChatSession {
     id: string;
     title: string;
     messages: ChatMessage[];
+    outcome?: TradeOutcome;
     updatedAt: number;
 }
 
@@ -165,8 +187,11 @@ export default function Home() {
     const [analyzing, setAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [draftComment, setDraftComment] = useState("");
+    const [draftHtfFile, setDraftHtfFile] = useState<File | null>(null);
+    const [draftLtfFile, setDraftLtfFile] = useState<File | null>(null);
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const htfInputRef = useRef<HTMLInputElement>(null);
+    const ltfInputRef = useRef<HTMLInputElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom of chat
@@ -225,24 +250,49 @@ export default function Home() {
         }
     };
 
+    const resolveSetup = (sessionId: string, outcome: TradeOutcome) => {
+        setSessions(prev => prev.map(s => {
+            if (s.id === sessionId) {
+                return { ...s, outcome, updatedAt: Date.now() };
+            }
+            return s;
+        }));
+    };
+
     const handleFileDrop = (e: React.DragEvent) => {
         e.preventDefault();
         const droppedFile = e.dataTransfer.files[0];
         if (droppedFile && droppedFile.type.startsWith("image/")) {
-            processFile(droppedFile);
+            if (!draftHtfFile) {
+                setDraftHtfFile(droppedFile);
+            } else if (!draftLtfFile) {
+                setDraftLtfFile(droppedFile);
+            }
         }
     };
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            processFile(selectedFile);
-        }
+    const fileToBase64 = (file: File): Promise<{ base64String: string, base64Data: string }> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                const base64String = reader.result as string;
+                const base64Data = base64String.split(',')[1];
+                resolve({ base64String, base64Data });
+            };
+            reader.onerror = error => reject(error);
+        });
     };
 
-    const processFile = async (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            setError("Quantitative format error. Image files only.");
+    const removeDraftFile = (type: 'HTF' | 'LTF', e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (type === 'HTF') setDraftHtfFile(null);
+        if (type === 'LTF') setDraftLtfFile(null);
+    };
+
+    const transmitFiles = async () => {
+        if (!draftHtfFile && !draftLtfFile) {
+            setError("Quantitative format error. Provide at least one HTF or LTF chart image.");
             return;
         }
 
@@ -257,93 +307,115 @@ export default function Home() {
         }
 
         try {
-            const reader = new FileReader();
-            reader.readAsDataURL(selectedFile);
+            const currentComment = draftComment.trim();
+            const userMsgId = Date.now().toString();
 
-            reader.onload = async () => {
-                const base64String = reader.result as string;
-                const base64Data = base64String.split(',')[1];
+            let htfData = null;
+            let ltfData = null;
 
-                // 1. Add User Message (The Image + Comment)
-                const userMsgId = Date.now().toString();
-                const currentComment = draftComment.trim();
-                const userMessage: ChatMessage = {
-                    id: userMsgId,
-                    role: 'user',
-                    text: currentComment || undefined,
-                    imageBase64: base64Data,
-                    imageUrl: base64String,
-                    timestamp: Date.now()
-                };
+            if (draftHtfFile) htfData = await fileToBase64(draftHtfFile);
+            if (draftLtfFile) ltfData = await fileToBase64(draftLtfFile);
 
-                // Clear the input cleanly
-                setDraftComment("");
-
-                setSessions(prev => prev.map(s => {
-                    if (s.id === currentSessionId) {
-                        return { ...s, messages: [...s.messages, userMessage], updatedAt: Date.now() };
-                    }
-                    return s;
-                }));
-
-                // Extract history for API from the current scope closure
-                const currentSession = sessions.find(s => s.id === currentSessionId);
-                const historyContext = currentSession?.messages.map(m => {
-                    if (m.role === 'user') {
-                        return { role: m.role, imageBase64: m.imageBase64, text: m.text };
-                    } else if (m.role === 'assistant') {
-                        // Pass the previous JSON output back so the AI can anchor its targets
-                        return { role: m.role, text: JSON.stringify(m.analysisResult) };
-                    }
-                }).filter(Boolean) || [];
-
-                // Fire API Call in background (outside of any setState updater to prevent React StrictMode double-firing)
-                fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        imageBase64: base64Data,
-                        chatHistory: historyContext,
-                        comment: currentComment || undefined
-                    }),
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.error) throw new Error(data.error);
-
-                        // 3. Add Assistant Message
-                        const resultMessage: ChatMessage = {
-                            id: (Date.now() + 1).toString(),
-                            role: 'assistant',
-                            analysisResult: data.analysis,
-                            timestamp: Date.now()
-                        };
-
-                        setSessions(prev => prev.map(s => {
-                            if (s.id === currentSessionId) {
-                                // If this is the very first bot response, update the chat title dynamically
-                                const isFirstMessage = s.messages.length <= 2;
-                                let newTitle = s.title;
-                                if (isFirstMessage) {
-                                    if (data.analysis.Asset_Ticker) {
-                                        newTitle = `${data.analysis.Asset_Ticker} ${data.analysis.Declared_Winner_Direction !== 'INSUFFICIENT_DATA' ? data.analysis.Declared_Winner_Direction : ''}`.trim();
-                                    } else if (data.analysis.Declared_Winner_Direction && data.analysis.Declared_Winner_Direction !== 'INSUFFICIENT_DATA') {
-                                        newTitle = `${data.analysis.Declared_Winner_Direction} SETUP`;
-                                    }
-                                }
-
-                                return { ...s, title: newTitle, messages: [...s.messages, resultMessage], updatedAt: Date.now() };
-                            }
-                            return s;
-                        }));
-                        setAnalyzing(false);
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        setError(err.message || "Failed to analyze image");
-                        setAnalyzing(false);
-                    });
+            const userMessage: ChatMessage = {
+                id: userMsgId,
+                role: 'user',
+                text: currentComment || undefined,
+                htfImageBase64: htfData?.base64Data,
+                htfImageUrl: htfData?.base64String,
+                ltfImageBase64: ltfData?.base64Data,
+                ltfImageUrl: ltfData?.base64String,
+                timestamp: Date.now()
             };
+
+            // Fallback for visual backward compatibility if only 1 image uploaded (assumes old single-image style)
+            if (draftHtfFile && !draftLtfFile) {
+                userMessage.imageBase64 = htfData?.base64Data;
+                userMessage.imageUrl = htfData?.base64String;
+                userMessage.htfImageBase64 = undefined;
+                userMessage.htfImageUrl = undefined;
+            } else if (!draftHtfFile && draftLtfFile) {
+                userMessage.imageBase64 = ltfData?.base64Data;
+                userMessage.imageUrl = ltfData?.base64String;
+                userMessage.ltfImageBase64 = undefined;
+                userMessage.ltfImageUrl = undefined;
+            }
+
+            setDraftComment("");
+            setDraftHtfFile(null);
+            setDraftLtfFile(null);
+
+            setSessions(prev => prev.map(s => {
+                if (s.id === currentSessionId) {
+                    return { ...s, messages: [...s.messages, userMessage], updatedAt: Date.now() };
+                }
+                return s;
+            }));
+
+            // Extract history for API from the current scope closure
+            const currentSession = sessions.find(s => s.id === currentSessionId);
+            const historyContext = currentSession?.messages.map(m => {
+                if (m.role === 'user') {
+                    return {
+                        role: m.role,
+                        imageBase64: m.imageBase64,
+                        htfImageBase64: m.htfImageBase64,
+                        ltfImageBase64: m.ltfImageBase64,
+                        text: m.text
+                    };
+                } else if (m.role === 'assistant') {
+                    // Pass the previous JSON output back so the AI can anchor its targets
+                    return { role: m.role, text: JSON.stringify(m.analysisResult) };
+                }
+            }).filter(Boolean) || [];
+
+            // Fire API Call in background (outside of any setState updater to prevent React StrictMode double-firing)
+            fetch('/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    imageBase64: userMessage.imageBase64,
+                    htfImageBase64: userMessage.htfImageBase64,
+                    ltfImageBase64: userMessage.ltfImageBase64,
+                    chatHistory: historyContext,
+                    comment: currentComment || undefined
+                }),
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+
+                    // 3. Add Assistant Message
+                    const resultMessage: ChatMessage = {
+                        id: (Date.now() + 1).toString(),
+                        role: 'assistant',
+                        analysisResult: data.analysis,
+                        timestamp: Date.now()
+                    };
+
+                    setSessions(prev => prev.map(s => {
+                        if (s.id === currentSessionId) {
+                            // If this is the very first bot response, update the chat title dynamically
+                            const isFirstMessage = s.messages.length <= 2;
+                            let newTitle = s.title;
+                            if (isFirstMessage) {
+                                if (data.analysis.Asset_Ticker) {
+                                    newTitle = `${data.analysis.Asset_Ticker} ${data.analysis.Declared_Winner_Direction !== 'INSUFFICIENT_DATA' ? data.analysis.Declared_Winner_Direction : ''}`.trim();
+                                } else if (data.analysis.Declared_Winner_Direction && data.analysis.Declared_Winner_Direction !== 'INSUFFICIENT_DATA') {
+                                    newTitle = `${data.analysis.Declared_Winner_Direction} SETUP`;
+                                }
+                            }
+
+                            return { ...s, title: newTitle, messages: [...s.messages, resultMessage], updatedAt: Date.now() };
+                        }
+                        return s;
+                    }));
+                    setAnalyzing(false);
+                })
+                .catch(err => {
+                    console.error(err);
+                    setError(err.message || "Failed to analyze image");
+                    setAnalyzing(false);
+                });
         } catch (err: any) {
             console.error(err);
             setError(err.message);
@@ -426,6 +498,12 @@ export default function Home() {
                             No active sequences
                         </div>
                     )}
+                </div>
+
+                <div className="p-4 border-t border-white/5 bg-black/20 mt-auto">
+                    <Link href="/analytics" className="w-full py-3 bg-[#091A3A]/40 hover:bg-[#091A3A]/80 border border-white/10 hover:border-[#00FFFF]/30 rounded-xl flex items-center justify-center gap-2 text-white/70 hover:text-[#00FFFF] text-xs font-mono font-bold transition-all uppercase tracking-widest shadow-lg">
+                        <BarChart3 className="w-4 h-4" /> Performance Matrix
+                    </Link>
                 </div>
             </aside>
 
@@ -611,6 +689,43 @@ export default function Home() {
                                 })}
                             </AnimatePresence>
 
+                            {/* Resolve Setup Panel - Trade Journaling */}
+                            {(() => {
+                                const lastMsg = activeSession.messages[activeSession.messages.length - 1];
+                                if (!analyzing && lastMsg?.role === 'assistant' &&
+                                    (lastMsg.analysisResult?.Declared_Winner_Direction === 'LONG' || lastMsg.analysisResult?.Declared_Winner_Direction === 'SHORT')) {
+
+                                    return (
+                                        <div className="w-full max-w-2xl mx-auto mt-4 mb-8">
+                                            {activeSession.outcome ? (
+                                                <div className="bg-[#050B14]/80 border border-white/10 rounded-xl p-4 flex items-center justify-between text-sm shadow-xl">
+                                                    <span className="text-white/50 font-mono tracking-widest pl-2 uppercase text-[10px]">Setup Resolved:</span>
+                                                    <div className="flex gap-4 items-center">
+                                                        <span className={`font-bold px-4 py-2 rounded-lg tracking-widest uppercase text-xs ${activeSession.outcome.includes('TP') ? 'text-green-400 bg-green-400/10 outline outline-1 outline-green-400/30' :
+                                                            activeSession.outcome === 'Stopped Out' ? 'text-red-400 bg-red-400/10 outline outline-1 outline-red-400/30' :
+                                                                'text-orange-400 bg-orange-400/10 outline outline-1 outline-orange-400/30'
+                                                            }`}>{activeSession.outcome}</span>
+                                                        <button onClick={() => resolveSetup(activeSession.id, undefined as any)} className="text-white/30 hover:text-white/70 text-xs underline decoration-white/20 underline-offset-4">Undo</button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#091A3A]/60 border border-[#00FFFF]/20 rounded-2xl p-6 shadow-xl backdrop-blur-md relative overflow-hidden">
+                                                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#00FFFF]/5 blur-3xl"></div>
+                                                    <h3 className="text-[#00FFFF] text-xs uppercase tracking-widest font-bold mb-4 text-center">Grade Trade Outcome</h3>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 relative z-10">
+                                                        <button onClick={() => resolveSetup(activeSession.id, 'Hit TP1')} className="px-3 py-3 text-xs font-bold text-green-400 border border-green-400/30 bg-green-400/5 hover:bg-green-400/20 rounded-xl transition-all shadow-[0_0_15px_rgba(74,222,128,0.1)] hover:shadow-[0_0_20px_rgba(74,222,128,0.2)]">Hit TP1</button>
+                                                        <button onClick={() => resolveSetup(activeSession.id, 'Hit Full TP')} className="px-3 py-3 text-xs font-bold text-green-500 border border-green-500/30 bg-green-500/5 hover:bg-green-500/20 rounded-xl transition-all shadow-[0_0_15px_rgba(34,197,94,0.1)] hover:shadow-[0_0_20px_rgba(34,197,94,0.2)]">Hit Full TP</button>
+                                                        <button onClick={() => resolveSetup(activeSession.id, 'Stopped Out')} className="px-3 py-3 text-xs font-bold text-red-400 border border-red-400/30 bg-red-400/5 hover:bg-red-400/20 rounded-xl transition-all shadow-[0_0_15px_rgba(248,113,113,0.1)] hover:shadow-[0_0_20px_rgba(248,113,113,0.2)]">Stopped Out</button>
+                                                        <button onClick={() => resolveSetup(activeSession.id, 'Invalidated')} className="px-3 py-3 text-xs font-bold text-orange-400 border border-orange-400/30 bg-orange-400/5 hover:bg-orange-400/20 rounded-xl transition-all shadow-[0_0_15px_rgba(251,146,60,0.1)] hover:shadow-[0_0_20px_rgba(251,146,60,0.2)]">Invalidated</button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
+
                             {analyzing && (
                                 <div className="w-full flex flex-col items-center">
                                     <div className="w-0.5 h-12 bg-gradient-to-b from-white/20 to-[#00FFFF]/50 my-2"></div>
@@ -638,26 +753,32 @@ export default function Home() {
                         )}
 
                         <div
-                            className="bg-[#091A3A]/80 backdrop-blur-2xl border border-white/20 hover:border-[#00FFFF]/50 hover:bg-[#091A3A]/90 rounded-2xl p-3 shadow-[0_20px_50px_rgba(0,0,0,0.7)] transition-all flex flex-col md:flex-row items-center gap-4 cursor-pointer group"
+                            className="bg-[#091A3A]/80 backdrop-blur-2xl border border-white/20 rounded-2xl p-3 shadow-[0_20px_50px_rgba(0,0,0,0.7)] transition-all flex flex-col md:flex-row items-center gap-4"
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={handleFileDrop}
-                            onClick={() => fileInputRef.current?.click()}
                         >
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept="image/*"
-                                onChange={handleFileSelect}
-                            />
+                            <input type="file" ref={htfInputRef} className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && setDraftHtfFile(e.target.files[0])} />
+                            <input type="file" ref={ltfInputRef} className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && setDraftLtfFile(e.target.files[0])} />
 
-                            <div className="flex items-center gap-4 w-full md:w-auto flex-1 overflow-hidden">
-                                <div className="w-12 h-12 bg-black/40 group-hover:bg-[#00FFFF]/20 rounded-xl flex items-center justify-center text-white/50 group-hover:text-[#00FFFF] shrink-0 transition-colors shadow-inner border border-white/5">
-                                    <UploadCloud className="w-5 h-5" />
+                            <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                                {/* HTF Button */}
+                                <div
+                                    onClick={() => !draftHtfFile && htfInputRef.current?.click()}
+                                    className={`relative h-12 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer border ${draftHtfFile ? 'bg-[#00FFFF]/20 border-[#00FFFF] text-white' : 'bg-black/40 border-white/5 text-white/50 hover:bg-[#00FFFF]/10 hover:text-[#00FFFF]'}`}
+                                >
+                                    <UploadCloud className="w-4 h-4 shrink-0" />
+                                    <span className="text-xs font-bold whitespace-nowrap">{draftHtfFile ? 'HTF Loaded' : 'Add HTF'}</span>
+                                    {draftHtfFile && <Trash2 className="w-4 h-4 text-red-400 hover:text-red-300 ml-2" onClick={(e) => removeDraftFile('HTF', e)} />}
                                 </div>
-                                <div className="hidden md:block flex-1 overflow-hidden">
-                                    <p className="text-sm font-bold text-white tracking-wide truncate">Append Evolution Update</p>
-                                    <p className="text-xs text-[#00FFFF]/70 truncate font-mono">Drag & drop chronological chart</p>
+
+                                {/* LTF Button */}
+                                <div
+                                    onClick={() => !draftLtfFile && ltfInputRef.current?.click()}
+                                    className={`relative h-12 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer border ${draftLtfFile ? 'bg-[#FF00FF]/20 border-[#FF00FF] text-white' : 'bg-black/40 border-white/5 text-white/50 hover:bg-[#FF00FF]/10 hover:text-[#FF00FF]'}`}
+                                >
+                                    <Zap className="w-4 h-4 shrink-0" />
+                                    <span className="text-xs font-bold whitespace-nowrap">{draftLtfFile ? 'LTF Loaded' : 'Add LTF'}</span>
+                                    {draftLtfFile && <Trash2 className="w-4 h-4 text-red-400 hover:text-red-300 ml-2" onClick={(e) => removeDraftFile('LTF', e)} />}
                                 </div>
                             </div>
 
@@ -666,12 +787,14 @@ export default function Home() {
                                 placeholder="Optional: Add context..."
                                 value={draftComment}
                                 onChange={(e) => setDraftComment(e.target.value)}
-                                onClick={(e) => e.stopPropagation()} // Prevent clicking input from triggering file upload
                                 className="w-full md:w-auto flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00FFFF]/40 focus:ring-1 focus:ring-[#00FFFF]/40 transition-all font-mono"
                             />
 
-                            <div className="w-full md:w-auto px-5 py-3 bg-white text-black rounded-xl font-bold text-[10px] uppercase tracking-widest flex justify-center items-center gap-2 hover:bg-[#00FFFF] transition-colors shadow-lg shrink-0">
-                                Transmit <ArrowRight className="w-3 h-3" />
+                            <div
+                                onClick={transmitFiles}
+                                className={`w-full md:w-auto px-5 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex justify-center items-center gap-2 transition-all shadow-lg shrink-0 text-black ${draftHtfFile || draftLtfFile ? 'bg-white hover:bg-[#00FFFF] cursor-pointer' : 'bg-white/50 cursor-not-allowed opacity-50'}`}
+                            >
+                                Transmit <ArrowRight className="w-3 h-3 block" />
                             </div>
                         </div>
                     </div>
