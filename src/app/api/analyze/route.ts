@@ -53,8 +53,8 @@ S_micro (Maximum 100): Base 50. +20 if the sweep candle is a perfect flat-close 
 P_final = (0.6 * S_macro) + (0.4 * S_micro)
 
 === ZONE 4: OUTPUT INSTRUCTIONS ===
-Map reasoning perfectly to the exact JSON schema. Do not output markdown text outside the JSON. Field 'Declared_Winner_Direction' must be "INSUFFICIENT_DATA" if the chart cannot be mathematically read. 
-CRITICAL JSON ORDER: You MUST execute your deep visual analysis in the 'Detailed_Logical_Synthesis' field FIRST, before you output the Sweep Type, Scores, or Winner Direction. Take your time, think slowly, explicitly cite structural evidence, and explain the compounding evolution from the context history. Use this field as your Chain-of-Thought scratchpad to guarantee your math is perfect before outputting the final numerical zones.`;
+Map reasoning perfectly to the exact JSON schema. Do not output markdown text outside the JSON. Field 'Declared_Winner_Direction' must be "INSUFFICIENT_DATA" if the chart cannot be mathematically read.
+CRITICAL JSON ORDER & NUMERICAL PRECISION: You MUST execute your deep visual analysis in the 'Detailed_Logical_Synthesis' field FIRST. Before outputting any Entry, TP, or SL digits, you must explicitly state in this synthesis field how you mapped the structural geometry of the candles horizontally to the exact numbers on the right-hand Y-axis price scale. Take your time, visually trace the lines, and ensure the numbers are mathematically accurate. Only after this rigorous Y-axis cross-referencing should you populate the final numerical target fields.`;
 
 const tradeSchema = {
   type: Type.OBJECT,
