@@ -38,17 +38,17 @@ Step 5: APPLY "BLACK BEAR" SWEEP EXPLOIT LOGIC & IMMEDIATE PROBABILITY BINARIZAT
 A chart may contain both a recent Bullish SSL Sweep and a Bearish BSL Sweep. You must NOT prioritize "dominant macro ambition". Your sole goal is to identify the HIGHEST IMMEDIATE PROBABILITY setup to hit a fast Take Profit 1 (TP1). You must binarize the chart by selecting ONLY the single setup that offers the clearest, easiest path to the closest liquidity void right now. Discard the other.
 * Bullish SSL Sweep: Look for an extraordinarily long, open-sided down wick that violently pierces the SSL line, sharply rejects, and prints a flat-bottomed closing body back inside structure.
 * Bearish BSL Sweep: Look for a long, open-sided up wick that violently pierces the BSL line, rejects, and prints a flat-topped closing body back inside structure.
-Step 6: TRIPARTITE CONFLUENCE VERIFICATION (The Vertical Scan)
-Drop a perfectly straight vertical line (the Global Cursor crosshair) directly down the exact centerline of the sweep candle on the FINAL image.
-* Top Pane: Verify zero secondary wick extension on the closing bound.
-* Middle Pane (DBars): Look for a vertical intersection with a Vivid Yellow divergence dot or solid line (Delta Divergence).
-* Bottom Pane (Entropy): Look for a vertical intersection with a massive, dense visual cluster of blocks (Informational density > 2.5 bits).
+Step 6: TRIPARTITE CONFLUENCE VERIFICATION (Relaxed Temporal Proximity Search)
+Because the user's Exocharts layout may NOT have the Price, DBars, and Entropy panes perfectly vertically stacked, you must NOT drop a strict, microscopic vertical line. Instead, use a "Relaxed Bounding Box" search.
+1. Locate the timestamp/horizontal X-axis position of the sweep candle in the Top Pane.
+2. Scan the Middle Pane (DBars) horizontally within a generous X-axis window of that position. Is there a Vivid Yellow divergence dot or line in the relative vicinity?
+3. Scan the Bottom Pane (Entropy) within that same generous X-axis window. Is there a dense visual cluster of blocks?
 
 === ZONE 3: DYNAMIC SCORING MATRIX ===
 Mathematically calculate the following variables as boolean True (+ Points) or False (+0) based ONLY on the FINAL image's state, but informed by the context.
 
 S_macro (Maximum 100): Base 50. +20 if a valid Black Bear sweep is confirmed. +15 if "REKT" style liquidation data visual overlaps the wick peak. +15 if FPBS CVD row data shows aggressive opposing absorption.
-S_micro (Maximum 100): Base 50. +20 if the sweep candle is a perfect flat-close TRev box. +15 if the vertical line perfectly intersects the DBars Vivid Yellow marker. +15 if the Entropy block cluster is visually overwhelming.
+S_micro (Maximum 100): Base 50. +20 if the sweep candle is a perfect flat-close TRev box. +15 if the DBars Vivid Yellow marker is found in temporal proximity to the sweep. +15 if the Entropy block cluster is visually overwhelming in the temporal vicinity.
 
 P_final = (0.6 * S_macro) + (0.4 * S_micro)
 
