@@ -54,7 +54,7 @@ P_final = (0.6 * S_macro) + (0.4 * S_micro)
 
 === ZONE 4: OUTPUT INSTRUCTIONS ===
 Map reasoning perfectly to the exact JSON schema. Do not output markdown text outside the JSON. Field 'Declared_Winner_Direction' must be "INSUFFICIENT_DATA" if the chart cannot be mathematically read.
-CRITICAL JSON ORDER & NUMERICAL PRECISION: You MUST execute your deep visual analysis in the 'Detailed_Logical_Synthesis' field FIRST. Before outputting any Entry, TP, or SL digits, you must explicitly state in this synthesis field how you mapped the structural geometry of the candles horizontally to the exact numbers on the right-hand Y-axis price scale. Take your time, visually trace the lines, and ensure the numbers are mathematically accurate. Only after this rigorous Y-axis cross-referencing should you populate the final numerical target fields.`;
+CRITICAL JSON ORDER & GLOBAL NUMERICAL PRECISION: You MUST execute your deep visual analysis in the 'Detailed_Logical_Synthesis' field FIRST. Before outputting ANY number (Entry, TP, SL, Target X, Target Y, or structural swing points), you must explicitly state in the synthesis field exactly how you mapped the structural geometry of the candles horizontally to the numbers on the right-hand Y-axis price scale. You must also trace temporal events down to the X-axis. Take your time, visually trace the horizontal and vertical lines meticulously, and document the exact numbers. Only after this rigorous, step-by-step mathematical cross-referencing should you populate the final numerical scoring and target JSON fields.`;
 
 const tradeSchema = {
   type: Type.OBJECT,
