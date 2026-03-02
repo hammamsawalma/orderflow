@@ -236,6 +236,13 @@ export default function Home() {
         };
         setSessions([newSession, ...sessions]);
         setActiveSessionId(newSession.id);
+
+        // Explicitly clear all draft states and browser input values for the new session
+        setDraftHtfFile(null);
+        setDraftLtfFile(null);
+        setDraftComment("");
+        if (htfInputRef.current) htfInputRef.current.value = "";
+        if (ltfInputRef.current) ltfInputRef.current.value = "";
     };
 
     const deleteSession = (e: React.MouseEvent, id: string) => {
@@ -286,8 +293,14 @@ export default function Home() {
 
     const removeDraftFile = (type: 'HTF' | 'LTF', e: React.MouseEvent) => {
         e.stopPropagation();
-        if (type === 'HTF') setDraftHtfFile(null);
-        if (type === 'LTF') setDraftLtfFile(null);
+        if (type === 'HTF') {
+            setDraftHtfFile(null);
+            if (htfInputRef.current) htfInputRef.current.value = "";
+        }
+        if (type === 'LTF') {
+            setDraftLtfFile(null);
+            if (ltfInputRef.current) ltfInputRef.current.value = "";
+        }
     };
 
     const transmitFiles = async () => {
@@ -343,6 +356,8 @@ export default function Home() {
             setDraftComment("");
             setDraftHtfFile(null);
             setDraftLtfFile(null);
+            if (htfInputRef.current) htfInputRef.current.value = "";
+            if (ltfInputRef.current) ltfInputRef.current.value = "";
 
             setSessions(prev => prev.map(s => {
                 if (s.id === currentSessionId) {
@@ -475,7 +490,14 @@ export default function Home() {
                     {sessions.map(session => (
                         <div
                             key={session.id}
-                            onClick={() => setActiveSessionId(session.id)}
+                            onClick={() => {
+                                setActiveSessionId(session.id);
+                                setDraftHtfFile(null);
+                                setDraftLtfFile(null);
+                                setDraftComment("");
+                                if (htfInputRef.current) htfInputRef.current.value = "";
+                                if (ltfInputRef.current) ltfInputRef.current.value = "";
+                            }}
                             className={`p-3 rounded-xl flex items-center justify-between cursor-pointer group transition-all ${activeSessionId === session.id ? 'bg-[#00FFFF]/10 border border-[#00FFFF]/30 shadow-inner' : 'hover:bg-white/5 border border-transparent'}`}
                         >
                             <div className="flex items-center gap-3 truncate">
