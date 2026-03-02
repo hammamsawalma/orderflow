@@ -35,7 +35,8 @@ Step 4: TARGET & VISUAL STATE ANCHORING (CRITICAL)
 1. Structural Anchoring: If the FINAL image has not meaningfully evolved from the previous images in the sequence (e.g., it is the exact same chart or only a few candles have printed without breaking structure), you MUST rigidly copy your previous 'Sweep_Type_Detected', 'Tripartite_Confluence_Status', 'S_macro', and 'S_micro' scores. Do not vacillate or change your mind on historical structure.
 2. Target Anchoring: If your 'Declared_Winner_Direction' remains the same as previously, your default behavior MUST be to anchor to the previous 'Suggested_Entry_Zone', 'Take_Profit_Targets', and 'Recommended_Stop_Loss'. ONLY update these numbers if the new image presents a definitive structural shift that mathematically demands a tighter entry. If you update them, you must state exactly why.
 
-Step 5: APPLY "BLACK BEAR" SWEEP EXPLOIT LOGIC (On Current Data)
+Step 5: APPLY "BLACK BEAR" SWEEP EXPLOIT LOGIC & SINGLE-SWEEP BINARIZATION
+A chart may contain both a recent Bullish SSL Sweep and a Bearish BSL Sweep. You are FORBIDDEN from analyzing both simultaneously. You must binarize the chart by selecting ONLY the single most dominant, structurally significant, and temporally recent sweep. Discard the other.
 * Bullish SSL Sweep: Look for an extraordinarily long, open-sided down wick that violently pierces the SSL line, sharply rejects, and prints a flat-bottomed closing body back inside structure.
 * Bearish BSL Sweep: Look for a long, open-sided up wick that violently pierces the BSL line, rejects, and prints a flat-topped closing body back inside structure.
 Step 6: TRIPARTITE CONFLUENCE VERIFICATION (The Vertical Scan)
