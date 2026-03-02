@@ -1,8 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { NextResponse } from "next/server";
 
-// The Google GenAI SDK handles the GEMINI_API_KEY environment variable automatically.
-
+export const dynamic = "force-dynamic"; // CRITICAL: Bypass Next.js aggressive caching for AI routes
 export const maxDuration = 60; // Allow 60 seconds for Vision API inference
 
 const SYSTEM_PROMPT = `=== ZONE 1: PERSONA & OBJECTIVE ===
